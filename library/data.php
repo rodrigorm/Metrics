@@ -1,5 +1,12 @@
 <?php
 
+function db()
+{
+    $db = new PDO('mysql:dbname=benchmark;host=127.0.0.1', 'root', 'root', array(PDO::ATTR_PERSISTENT => false));
+    $db->exec("set time_zone = '-0300';");
+    return $db;
+}
+
 function fetch($db, $from, $until)
 {
     $from = new DateTime($from);
@@ -22,6 +29,37 @@ function fetch($db, $from, $until)
     }
 
     return filter($result, $from, $until);
+}
+
+function insert($db, $target, $value, $timestamp)
+{
+    $metricId = metric($db, $target);
+    $created = new DateTime('@' . $timestamp);
+
+    $insert = $db->prepare("INSERT INTO data (metric_id, value, created) VALUE (:metric_id, :value, :created)");
+    $insert->execute(array(
+        ':metric_id' => $metricId,
+        ':value' => $value,
+        ':created' => $created->format('Y-m-d H:i:s')
+    ));
+}
+
+function metric($db, $name)
+{
+    $select = $db->prepare("SELECT id FROM metrics WHERE name = :name");
+
+    $select->execute(array('name' => $name));
+    $result = $select->fetch();
+
+    if (empty($result['id'])) {
+        $insert = $db->prepare("INSERT INTO metrics (name) VALUE (:name)");
+        $insert->execute(array(':name' => $name));
+
+        $select->execute(array(':name' => $name));
+        $result = $select->fetch();
+    }
+
+    return $result['id'];
 }
 
 function filter($serie, $from, $until) {
@@ -63,9 +101,9 @@ function select($db, $from, $until, $interval = '', $group = 60)
     ");
 
     $select->execute(array(
-        'group' => $group,
-        'from' => $from,
-        'until' => $until
+        ':group' => $group,
+        ':from' => $from,
+        ':until' => $until
     ));
 
     return $select->fetchAll();
