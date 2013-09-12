@@ -47,7 +47,9 @@ function plot(target, calc) {
                 },
                 xaxis: {
                     mode: 'time',
-                    timezone: 'browser'
+                    timeformat: '%H:%M',
+                    timezone: 'browser',
+                    tickSize: [2, 'minute']
                 }
             };
 
@@ -56,7 +58,7 @@ function plot(target, calc) {
                 data: data
             };
             $(placeholder).plot([serie], options);
-            setTimeout(result, 5000);
+            setTimeout(result, 500);
         });
     }
 
