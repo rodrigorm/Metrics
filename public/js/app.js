@@ -58,7 +58,7 @@ function plot(target, calc) {
                 data: data
             };
             $(placeholder).plot([serie], options);
-            setTimeout(result, 500);
+            setTimeout(result, 5000);
         });
     }
 
@@ -67,6 +67,9 @@ function plot(target, calc) {
 
 plot('metrics.get.elapsed')();
 plot('metrics.get.elapsed', val_count)();
+
+plot('metrics.server.elapsed')();
+plot('metrics.server.elapsed', val_count)();
 
 plot('metrics.insert.elapsed')();
 plot('metrics.insert.elapsed', val_count)();

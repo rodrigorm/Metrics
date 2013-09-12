@@ -34,6 +34,7 @@ function fetch($db, $target, $from, $until)
 
 function insert($db, $target, $value, $timestamp)
 {
+    $start = microtime(true);
     $metricId = metric($db, $target);
 
     $insert = $db->prepare("INSERT INTO data (metric_id, value, created) VALUE (:metric_id, :value, :created)");
@@ -42,6 +43,7 @@ function insert($db, $target, $value, $timestamp)
         ':value' => $value,
         ':created' => date('Y-m-d H:i:s', (int)$timestamp)
     ));
+    metric_collect('metrics.insert.elapsed', (microtime(true) - $start) * 1000);
 }
 
 function metric($db, $name)

@@ -15,7 +15,7 @@ $factory->createServer(2003)->then(function (Datagram\Socket $server) use ($db) 
         $start = microtime(true);
         list($target, $value, $timestamp) = explode(' ', trim($message));
         insert($db, $target, $value, $timestamp);
-        metric_collect('metrics.insert.elapsed', (microtime(true) - $start) * 1000);
+        metric_collect('metrics.server.elapsed', (microtime(true) - $start) * 1000);
         echo 'client ', $address, ': ', trim($message), PHP_EOL;
     });
 });
