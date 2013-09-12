@@ -10,12 +10,21 @@ $loop = React\EventLoop\Factory::create();
 $factory = new Datagram\Factory($loop);
 
 $factory->createServer(2003)->then(function (Datagram\Socket $server) {
-    $server->on('message', function($message, $address, $server) {
+    global $count;
+    $count = 0;
+    $serverStart = microtime(true);
+
+    $server->on('message', function($message, $address, $server) use ($serverStart) {
         $start = microtime(true);
         list($target, $value, $timestamp) = explode(' ', trim($message));
         insert(db(), $target, $value, $timestamp);
         metric_collect('metrics.server.elapsed', (microtime(true) - $start) * 1000);
-        echo 'client ', $address, ': ', trim($message), PHP_EOL;
+
+        global $count;
+        $count++;
+        $elapsed = (microtime(true) - $serverStart);
+        $velocity = $count / $elapsed;
+        echo "\r", $count, ' / ', round($elapsed), 's = ', $velocity, ' messages/s';
     });
 });
 
