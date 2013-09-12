@@ -7,8 +7,9 @@ function db()
     return $db;
 }
 
-function fetch($db, $from, $until)
+function fetch($db, $target, $from, $until)
 {
+    $metricId = metric($db, $target);
     $from = new DateTime($from);
     $until = new DateTime($until);
 
@@ -19,7 +20,7 @@ function fetch($db, $from, $until)
         $last = new DateTime($current->format('Y-m-01 23:59:59'));
         $last->modify('next month')->modify('previous day');
 
-        $result = combine($result, select_range($db, $current->format('Y-m-d 00:00:00'), $last->format('Y-m-d 23:59:59')));
+        $result = combine($result, select_range($db, $metricId, $current->format('Y-m-d 00:00:00'), $last->format('Y-m-d 23:59:59')));
 
         $current->modify('next month');
 
@@ -34,13 +35,12 @@ function fetch($db, $from, $until)
 function insert($db, $target, $value, $timestamp)
 {
     $metricId = metric($db, $target);
-    $created = new DateTime('@' . $timestamp);
 
     $insert = $db->prepare("INSERT INTO data (metric_id, value, created) VALUE (:metric_id, :value, :created)");
     $insert->execute(array(
         ':metric_id' => $metricId,
         ':value' => $value,
-        ':created' => $created->format('Y-m-d H:i:s')
+        ':created' => date('Y-m-d H:i:s', (int)$timestamp)
     ));
 }
 
@@ -82,25 +82,29 @@ function filter($serie, $from, $until) {
  * WHERE created BETWEEN '2012-12-12 00:00:00' AND '2013-03-12 23:59:59'
  * GROUP BY time;
  */
-function select_range($db, $from, $until)
+function select_range($db, $metricId,  $from, $until)
 {
     return combine(
-        select($db, $from, $until, ''),
-        select($db, $from, $until, '_5min'),
-        select($db, $from, $until, '_60min')
+        select($db, $metricId, $from, $until, ''),
+        select($db, $metricId, $from, $until, '_5min'),
+        select($db, $metricId, $from, $until, '_60min')
     );
 }
 
-function select($db, $from, $until, $interval = '', $group = 60)
+function select($db, $metricId, $from, $until, $interval = '', $group = 60)
 {
     $select = $db->prepare("
-        SELECT FROM_UNIXTIME(FLOOR(UNIX_TIMESTAMP(created) / :group) * :group) AS time, SUM(value) value
+        SELECT FROM_UNIXTIME(FLOOR(UNIX_TIMESTAMP(created) / :group) * :group) AS time,
+        SUM(value) sum,
+        COUNT(id) count
         FROM data${interval}
-        WHERE created BETWEEN :from AND :until
+        WHERE metric_id = :metric_id
+        AND created BETWEEN :from AND :until
         GROUP BY time
     ");
 
     $select->execute(array(
+        ':metric_id' => $metricId,
         ':group' => $group,
         ':from' => $from,
         ':until' => $until
@@ -117,10 +121,12 @@ function combine(/* $series... */) {
 
     foreach ($series as $serie) {
         foreach ($serie as $item) {
-            $order[$item['time']] = $item['time'];
+            $key = $item['time'];
+            $order[$key] = $item['time'];
 
             if (array_key_exists($item['time'], $result)) {
-                $result[$item['time']]['value'] += $item['value'];
+                $result[$key]['sum'] += $item['sum'];
+                $result[$key]['count'] += $item['count'];
             } else {
                 $result[$item['time']] = $item;
             }

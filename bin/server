@@ -3,6 +3,7 @@
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../library/data.php';
+require_once __DIR__ . '/../library/api.php';
 
 $db = db();
 $loop = React\EventLoop\Factory::create();
@@ -11,8 +12,10 @@ $factory = new Datagram\Factory($loop);
 
 $factory->createServer(2003)->then(function (Datagram\Socket $server) use ($db) {
     $server->on('message', function($message, $address, $server) use ($db) {
+        $start = microtime(true);
         list($target, $value, $timestamp) = explode(' ', trim($message));
         insert($db, $target, $value, $timestamp);
+        metric_collect('metrics.insert.elapsed', (microtime(true) - $start) * 1000);
         echo 'client ', $address, ': ', trim($message), PHP_EOL;
     });
 });
