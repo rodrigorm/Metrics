@@ -32,17 +32,58 @@ function fetch($db, $target, $from, $until)
     return filter($result, $from, $until);
 }
 
-function insert($db, $target, $value, $timestamp)
+function save_message($db, $message)
 {
     $start = microtime(true);
-    $metricId = metric($db, $target);
+    insert_message($db, $message);
+    metric_collect('metrics.server.elapsed', (microtime(true) - $start) * 1000);
+}
 
-    $insert = $db->prepare("INSERT INTO data (metric_id, value, created) VALUE (:metric_id, :value, :created)");
-    $insert->execute(array(
-        ':metric_id' => $metricId,
-        ':value' => $value,
-        ':created' => date('Y-m-d H:i:s', (int)$timestamp)
-    ));
+function insert_message($db, $message = null, $flush = false)
+{
+    static $messages = array();
+
+    $start = microtime(true);
+
+    if (is_string($message)) {
+        $messages[] = $message;
+    }
+
+    if (count($messages) == 100 || $flush) {
+        save_messages($db, $messages);
+        $messages = array();
+    }
+    metric_collect('metrics.insert_message.elapsed', (microtime(true) - $start) * 1000);
+}
+
+function save_messages($db, $messages)
+{
+    $items = array();
+
+    foreach ($messages as $message) {
+        list($target, $value, $timestamp) = explode(' ', trim($message));
+        $metricId = metric($db, $target);
+        $created = date('Y-m-d H:i:s', (int)$timestamp);
+        $items[] = array($metricId, $value, $created);
+    }
+
+    insert_multi($db, $items);
+}
+
+function insert_multi($db, $items)
+{
+    $start = microtime(true);
+
+    $placeholders = array_fill(0, count($items), '(?, ?, ?)');
+    $data = array();
+
+    foreach ($items as $item) {
+        $data = array_merge($data, array_values($item));
+    }
+
+    $insert = $db->prepare("INSERT INTO data (metric_id, value, created) VALUE " . implode(', ', $placeholders));
+    $insert->execute($data);
+
     metric_collect('metrics.insert.elapsed', (microtime(true) - $start) * 1000);
 }
 

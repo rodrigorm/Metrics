@@ -73,3 +73,6 @@ plot('metrics.server.elapsed', val_count)();
 
 plot('metrics.insert.elapsed')();
 plot('metrics.insert.elapsed', val_count)();
+
+plot('metrics.insert_message.elapsed')();
+plot('metrics.insert_message.elapsed', val_count)();
