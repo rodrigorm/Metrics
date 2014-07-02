@@ -72,6 +72,10 @@ function save_messages($db, $messages)
 
 function insert_multi($db, $items)
 {
+    if (empty($items)) {
+        return;
+    }
+
     $start = microtime(true);
 
     $placeholders = array_fill(0, count($items), '(?, ?, ?)');

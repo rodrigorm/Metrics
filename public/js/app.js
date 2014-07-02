@@ -40,6 +40,9 @@ function plot(target, calc) {
             }
 
             options = {
+                legend: {
+                    position: 'sw'
+                },
                 yaxis: {
                     min: 0,
                     labelWidth: 20,
